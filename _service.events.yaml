@@ -1,0 +1,8 @@
+ServiceName: events
+InterfaceName: items
+Description: events
+APIDoc: ''
+Interfaces: ''
+RequiredScopes: ''
+AdditionalParameters: 
+Method: ''

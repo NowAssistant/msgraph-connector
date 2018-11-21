@@ -1,0 +1,10 @@
+{
+  "name": "Microsoft Graph",
+  "version": "0.1.0",
+  "description": "",
+  "main": "proxy.js",
+  "dependencies": {
+    "moment": "^2.22.2"
+  },
+  "devDependencies": {}
+}

@@ -1,0 +1,45 @@
+ConnectorTitle: Microsoft Graph
+AccessCodeServiceEndpoint: https://login.microsoftonline.com/common/oauth2/v2.0/authorize
+AccessTokenServiceEndpoint: https://login.microsoftonline.com/common/oauth2/v2.0/token
+ApiEndPoint: https://graph.microsoft.com/v1.0
+UserName: hide
+UserPassword: hide
+ClientId: required
+ClientSecret: required
+AccessCodeServiceUrl: hide
+AccessTokenServiceUrl: hide
+Personalized: !!bool true
+ApiKey: hide
+ServiceUrl: hide
+ServiceUrlHint: ''
+XML2JSON: hide
+ImpersonateOAuth: required
+Interface: hide
+Custom1: hide
+Custom1Label: Custom Field 1
+Custom1Hint: ''
+Custom2: hide
+Custom2Label: Custom Field 2
+Custom3: hide
+Custom2Hint: ''
+Custom3Label: Custom Field 3
+Custom3Hint: ''
+Scopes:
+- ScopeName: offline_access
+  ScopeDescription: offline_access
+  IsDefault: true
+- ScopeName: user.read
+  ScopeDescription: user.read  
+  IsDefault: true
+- ScopeName: calendars.read
+  ScopeDescription: calendars.read
+  IsDefault: true
+- ScopeName: user.read.all
+  ScopeDescription: user.read.all
+  IsDefault: true
+- ScopeName: files.read.all
+  ScopeDescription: files.read.all
+  IsDefault: true
+- ScopeName: people.read
+  ScopeDescription: people.read
+  IsDefault: true
