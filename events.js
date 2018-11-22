@@ -124,6 +124,8 @@ module.exports = async function (activity) {
             );
         }*/
 
+        item.showDetails = false;
+
         return item;
     }
 
