@@ -28,7 +28,7 @@ module.exports = async function (activity) {
             }
         }
 
-        activity.Response.Data.items.sort(dateDescending);
+        activity.Response.Data.items.sort(dateAscending);
     } catch (error) {
         var m = error.message;
  
@@ -42,8 +42,7 @@ module.exports = async function (activity) {
         };
     }
 
-    return activity.Response.Data.items;
-    //return activity;
+    return activity; // cloud connector support
  
     function configure_range() {
         if (activity.Request.Query.startDate) {
@@ -78,9 +77,9 @@ module.exports = async function (activity) {
  
         item.date = new Date(_item.start.dateTime).toISOString();
 
-        item.organizer.photo = await fetch_photo(
+        /*item.organizer.photo = await fetch_photo(
             _item.organizer.emailAddress.address
-        );
+        );*/
 
         const _duration = moment.duration(
             moment(_item.end.dateTime)
@@ -103,8 +102,6 @@ module.exports = async function (activity) {
 
         item.time = start.getHours() + ':' + 
             (start.getMinutes() < 10 ? '0' + start.getMinutes() : start.getMinutes());
-        
-        item.day = days[start.getDay()] + ', ' + start.getDate() + ' ' + months[start.getMonth()];
 
         if (item.location && item.location.coordinates) {
             item.location.link = 
@@ -112,12 +109,20 @@ module.exports = async function (activity) {
                 item.location.coordinates.latitude + ',' + 
                 item.location.coordinates.longitude;
         }
- 
-        for (let i = 0; i < _item.attendees.length; i++) {
+
+        item.attendeesCount = item.attendees.length;
+
+        if (item.responseRequested && item.responseStatus.response == 'accepted') {
+            item.responseStatus.string = 'Accepted ' + moment(item.responseStatus.time).fromNow();
+        }
+
+        item.date_readable = moment(item.date).format('MM/DD/YY');
+
+        /*for (let i = 0; i < _item.attendees.length; i++) {
             item.attendees[i].photo = await fetch_photo(
                 item.attendees[i].emailAddress.address
             );
-        }
+        }*/
 
         return item;
     }
@@ -131,17 +136,17 @@ module.exports = async function (activity) {
             const response = await got(endpoint, {
                 headers: {
                     'Authorization': 'Bearer ' + activity.Context.connector.token
-                }
+                },
             });
 
             if (response.statusCode == 200) {
-
                 console.log(response);
-                
-                return 'data:' + response.headers['content-type'] + ';base64,' +
-                    new Buffer.from(response.body, 'binary').toString('base64');
+                const data = new Buffer.from(response.body, 'binary');
+
+                return 'data:image/jpeg;base64,' + data.toString('base64');
             }
         } catch (err) {
+            console.log(err);
             return null;
         }
     }
@@ -167,36 +172,11 @@ const fields = [
     'responseStatus'
 ];
 
-const months = [ 
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December'
-];
-
-const days = [ 
-    'Sunday',
-    'Monday',
-    'Tuesday',
-    'Wednesday',
-    'Thursday',
-    'Friday',
-    'Saturday'
-];
- 
-const dateDescending = (a, b) => {
+const dateAscending = (a, b) => {
     a = new Date(a.date);
     b = new Date(b.date);
        
-    return a > b ? -1 : (a < b ? 1 : 0);
+    return a < b ? -1 : (a > b ? 1 : 0);
 };
  
 function convert_date(date) {
