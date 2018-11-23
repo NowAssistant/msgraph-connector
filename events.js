@@ -120,7 +120,6 @@ module.exports = async function (activity) {
         item.date_readable = moment(item.date).format('MM/DD/YY');
         // End temp assignments
 
-        /* Disable photo retrieval for now
         item.organizer.photo = await fetch_photo(
             _item.organizer.emailAddress.address
         );
@@ -130,7 +129,6 @@ module.exports = async function (activity) {
                 item.attendees[i].emailAddress.address
             );
         }
-        */
 
         item.showDetails = false;
 
@@ -147,12 +145,12 @@ module.exports = async function (activity) {
                 headers: {
                     'Authorization': 'Bearer ' + activity.Context.connector.token
                 },
+                encoding: null
             });
 
             if (response.statusCode == 200) {
-                const data = new Buffer.from(response.body);
-
-                return 'data:image/jpeg;base64,' + data.toString('base64');
+                return "data:" + response.headers["content-type"] + ";base64," + 
+                    new Buffer(response.body).toString('base64');
             }
         } catch (err) {
             return null;
