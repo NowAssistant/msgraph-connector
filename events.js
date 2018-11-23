@@ -1,6 +1,34 @@
-const api = require('./api');
 const got = require('got');
 const moment = require('moment');
+
+const api = require('./api');
+
+const fields = [
+    'subject',
+    'body',
+    'bodyPreview',
+    'organizer',
+    'attendees',
+    'start',
+    'end',
+    'location',
+    'isCancelled',
+    'webLink',
+    'onlineMeetingUrl',
+    'createdDateTime',
+    'lastModifiedDateTime',
+    'reminderMinutesBeforeStart',
+    'isReminderOn',
+    'responseRequested',
+    'responseStatus'
+];
+
+const dateAscending = (a, b) => {
+    a = new Date(a.date);
+    b = new Date(b.date);
+       
+    return a < b ? -1 : (a > b ? 1 : 0);
+};
 
 let startDate = null;
 let endDate = null;
@@ -16,19 +44,26 @@ module.exports = async function (activity) {
 
         const response = await api('/me/events?$select=' + fields.join(','));
  
-        configure_range();
- 
-        activity.Response.Data.items = [];
- 
-        for (let i = 0; i < response.body.value.length; i++) {
-            const item = await convert_item(response.body.value[i]);
+        if (response.statusCode == 200 && response.body.value && response.body.value.length > 0) {
+            configure_range();
+    
+            activity.Response.Data.items = [];
+    
+            for (let i = 0; i < response.body.value.length; i++) {
+                const item = await convert_item(response.body.value[i]);
 
-            if (!skip(i, response.body.value.length, new Date(item.date))) {
-                activity.Response.Data.items.push(item);
+                if (!skip(i, response.body.value.length, new Date(item.date))) {
+                    activity.Response.Data.items.push(item);
+                }
+            }
+
+            activity.Response.Data.items.sort(dateAscending);
+        } else {
+            activity.Response.Data = {
+                statusCode: response.statusCode,
+                message: 'Bad request or no events returned'
             }
         }
-
-        activity.Response.Data.items.sort(dateAscending);
     } catch (error) {
         var m = error.message;
  
@@ -43,6 +78,86 @@ module.exports = async function (activity) {
     }
 
     return activity; // cloud connector support
+
+    async function convert_item(_item) {
+        const item = _item;
+ 
+        item.date = new Date(_item.start.dateTime).toISOString();
+
+        const _duration = moment.duration(
+            moment(_item.end.dateTime)
+                .diff(
+                    moment(_item.start.dateTime)
+                )
+        );
+
+        let duration = '';
+
+        if (_duration._data.years > 0) duration += _duration._data.years + 'y ';
+        if (_duration._data.months > 0) duration += _duration._data.months + 'mo ';
+        if (_duration._data.days > 0) duration += _duration._data.days + 'd ';
+        if (_duration._data.hours > 0) duration += _duration._data.hours + 'h ';
+        if (_duration._data.minutes > 0) duration += _duration._data.minutes + 'm ';
+
+        item.duration = duration;
+        
+        //TODO change to Cisco room link when response property name is known
+        if (item.location && item.location.coordinates) {
+            item.location.link = 
+                'https://www.google.com/maps/search/?api=1&query=' + 
+                item.location.coordinates.latitude + ',' + 
+                item.location.coordinates.longitude;
+        }
+
+        //TODO add Cisco webex link when response property name is known
+
+        // Temp date strings until at-carbon-moment is fixed
+        const start = new Date(_item.start.dateTime);
+
+        item.time = start.getHours() + ':' + 
+            (start.getMinutes() < 10 ? '0' + start.getMinutes() : start.getMinutes());
+
+        item.date_readable = moment(item.date).format('MM/DD/YY');
+        // End temp assignments
+
+        /* Disable photo retrieval for now
+        item.organizer.photo = await fetch_photo(
+            _item.organizer.emailAddress.address
+        );
+
+        for (let i = 0; i < _item.attendees.length; i++) {
+            item.attendees[i].photo = await fetch_photo(
+                item.attendees[i].emailAddress.address
+            );
+        }
+        */
+
+        item.showDetails = false;
+
+        return item;
+    }
+
+    async function fetch_photo(account) {
+        const endpoint = 
+            activity.Context.connector.endpoint + '/users/' + 
+            account + '/photos/48x48/$value';
+ 
+        try {
+            const response = await got(endpoint, {
+                headers: {
+                    'Authorization': 'Bearer ' + activity.Context.connector.token
+                },
+            });
+
+            if (response.statusCode == 200) {
+                const data = new Buffer.from(response.body);
+
+                return 'data:image/jpeg;base64,' + data.toString('base64');
+            }
+        } catch (err) {
+            return null;
+        }
+    }
  
     function configure_range() {
         if (activity.Request.Query.startDate) {
@@ -71,123 +186,7 @@ module.exports = async function (activity) {
             pageSize = 10;
         }
     }
- 
-    async function convert_item(_item) {
-        const item = _item;
- 
-        item.date = new Date(_item.start.dateTime).toISOString();
-
-        /*item.organizer.photo = await fetch_photo(
-            _item.organizer.emailAddress.address
-        );*/
-
-        const _duration = moment.duration(
-            moment(_item.end.dateTime)
-                .diff(
-                    moment(_item.start.dateTime)
-                )
-        );
-
-        let duration = '';
-
-        if (_duration._data.years > 0) duration += _duration._data.years + 'y ';
-        if (_duration._data.months > 0) duration += _duration._data.months + 'mo ';
-        if (_duration._data.days > 0) duration += _duration._data.days + 'd ';
-        if (_duration._data.hours > 0) duration += _duration._data.hours + 'h ';
-        if (_duration._data.minutes > 0) duration += _duration._data.minutes + 'm ';
-
-        item.duration = duration;
-
-        const start = new Date(_item.start.dateTime);
-
-        item.time = start.getHours() + ':' + 
-            (start.getMinutes() < 10 ? '0' + start.getMinutes() : start.getMinutes());
-
-        if (item.location && item.location.coordinates) {
-            item.location.link = 
-                'https://www.google.com/maps/search/?api=1&query=' + 
-                item.location.coordinates.latitude + ',' + 
-                item.location.coordinates.longitude;
-        }
-
-        item.attendeesCount = item.attendees.length;
-
-        if (item.responseRequested && item.responseStatus.response == 'accepted') {
-            item.responseStatus.string = 'Accepted ' + moment(item.responseStatus.time).fromNow();
-        }
-
-        item.date_readable = moment(item.date).format('MM/DD/YY');
-
-        /*for (let i = 0; i < _item.attendees.length; i++) {
-            item.attendees[i].photo = await fetch_photo(
-                item.attendees[i].emailAddress.address
-            );
-        }*/
-
-        item.showDetails = false;
-
-        return item;
-    }
-
-    async function fetch_photo(account) {
-        const endpoint = 
-            activity.Context.connector.endpoint + '/users/' + 
-            account + '/photos/48x48/$value';
- 
-        try {
-            const response = await got(endpoint, {
-                headers: {
-                    'Authorization': 'Bearer ' + activity.Context.connector.token
-                },
-            });
-
-            if (response.statusCode == 200) {
-                console.log(response);
-                const data = new Buffer.from(response.body, 'binary');
-
-                return 'data:image/jpeg;base64,' + data.toString('base64');
-            }
-        } catch (err) {
-            console.log(err);
-            return null;
-        }
-    }
 };
-
-const fields = [
-    'subject',
-    'body',
-    'bodyPreview',
-    'organizer',
-    'attendees',
-    'start',
-    'end',
-    'location',
-    'isCancelled',
-    'webLink',
-    'onlineMeetingUrl',
-    'createdDateTime',
-    'lastModifiedDateTime',
-    'reminderMinutesBeforeStart',
-    'isReminderOn',
-    'responseRequested',
-    'responseStatus'
-];
-
-const dateAscending = (a, b) => {
-    a = new Date(a.date);
-    b = new Date(b.date);
-       
-    return a < b ? -1 : (a > b ? 1 : 0);
-};
- 
-function convert_date(date) {
-    return new Date(
-        date.substring(0, 4),
-        date.substring(4, 6) - 1,
-        date.substring(6, 8)
-    );
-}
  
 function skip(i, length, date) {
     if (startDate && endDate) {
@@ -211,4 +210,12 @@ function skip(i, length, date) {
     } else {
         return false;
     }
+}
+
+function convert_date(date) {
+    return new Date(
+        date.substring(0, 4),
+        date.substring(4, 6) - 1,
+        date.substring(6, 8)
+    );
 }
