@@ -1,8 +1,8 @@
 {
-  "name": "Microsoft Graph",
+  "name": "adenin-msgraph-connector",
   "version": "0.1.0",
   "description": "",
-  "main": "proxy.js",
+  "main": "ping.js",
   "dependencies": {
     "moment": "^2.22.2"
   },

@@ -1,6 +1,6 @@
-const got = require('got');
-const moment = require('moment');
+'use strict';
 
+const moment = require('moment');
 const api = require('./api');
 
 const fields = [
@@ -26,31 +26,31 @@ const fields = [
 const dateAscending = (a, b) => {
     a = new Date(a.date);
     b = new Date(b.date);
-       
+
     return a < b ? -1 : (a > b ? 1 : 0);
 };
 
 let startDate = null;
 let endDate = null;
- 
+
 // eslint-disable-next-line no-unused-vars
 let action = null;
 let page = null;
 let pageSize = null;
- 
+
 module.exports = async function (activity) {
     try {
         api.initialize(activity);
 
         const response = await api('/me/events?$select=' + fields.join(','));
- 
-        if (response.statusCode == 200 && response.body.value && response.body.value.length > 0) {
-            configure_range();
-    
+
+        if (response.statusCode === 200 && response.body.value && response.body.value.length > 0) {
+            configureRange();
+
             activity.Response.Data.items = [];
-    
+
             for (let i = 0; i < response.body.value.length; i++) {
-                const item = await convert_item(response.body.value[i]);
+                const item = await convertItem(response.body.value[i]);
 
                 if (!skip(i, response.body.value.length, new Date(item.date))) {
                     activity.Response.Data.items.push(item);
@@ -62,15 +62,15 @@ module.exports = async function (activity) {
             activity.Response.Data = {
                 statusCode: response.statusCode,
                 message: 'Bad request or no events returned'
-            }
+            };
         }
     } catch (error) {
-        var m = error.message;
- 
+        let m = error.message;
+
         if (error.stack) {
             m = m + ': ' + error.stack;
         }
- 
+
         activity.Response.ErrorCode = (error.response && error.response.statusCode) || 500;
         activity.Response.Data = {
             ErrorText: m
@@ -79,9 +79,9 @@ module.exports = async function (activity) {
 
     return activity; // cloud connector support
 
-    async function convert_item(_item) {
+    function convertItem(_item) {
         const item = _item;
- 
+
         item.date = new Date(_item.start.dateTime).toISOString();
 
         const _duration = moment.duration(
@@ -93,41 +93,45 @@ module.exports = async function (activity) {
 
         let duration = '';
 
-        if (_duration._data.years > 0) duration += _duration._data.years + 'y ';
-        if (_duration._data.months > 0) duration += _duration._data.months + 'mo ';
-        if (_duration._data.days > 0) duration += _duration._data.days + 'd ';
-        if (_duration._data.hours > 0) duration += _duration._data.hours + 'h ';
-        if (_duration._data.minutes > 0) duration += _duration._data.minutes + 'm ';
+        if (_duration._data.years > 0) {
+            duration += _duration._data.years + 'y ';
+        }
+
+        if (_duration._data.months > 0) {
+            duration += _duration._data.months + 'mo ';
+        }
+
+        if (_duration._data.days > 0) {
+            duration += _duration._data.days + 'd ';
+        }
+
+        if (_duration._data.hours > 0) {
+            duration += _duration._data.hours + 'h ';
+        }
+
+        if (_duration._data.minutes > 0) {
+            duration += _duration._data.minutes + 'm ';
+        }
 
         item.duration = duration;
-        
+
         //TODO change to Cisco room link when response property name is known
         if (item.location && item.location.coordinates) {
-            item.location.link = 
-                'https://www.google.com/maps/search/?api=1&query=' + 
-                item.location.coordinates.latitude + ',' + 
+            item.location.link =
+                'https://www.google.com/maps/search/?api=1&query=' +
+                item.location.coordinates.latitude + ',' +
                 item.location.coordinates.longitude;
         }
 
         //TODO add Cisco webex link when response property name is known
 
-        // Temp date strings until at-carbon-moment is fixed
-        const start = new Date(_item.start.dateTime);
+        const basePhotoUri = 'https://outlook.office.com/owa/service.svc/s/GetPersonaPhoto?email=';
+        const photoSize = '&size=HR64x64';
 
-        item.time = start.getHours() + ':' + 
-            (start.getMinutes() < 10 ? '0' + start.getMinutes() : start.getMinutes());
-
-        item.date_readable = moment(item.date).format('MM/DD/YY');
-        // End temp assignments
-
-        item.organizer.photo = await fetch_photo(
-            _item.organizer.emailAddress.address
-        );
+        item.organizer.photo = basePhotoUri + _item.organizer.emailAddress.address + photoSize;
 
         for (let i = 0; i < _item.attendees.length; i++) {
-            item.attendees[i].photo = await fetch_photo(
-                item.attendees[i].emailAddress.address
-            );
+            item.attendees[i].photo = basePhotoUri + _item.attendees[i].emailAddress.address + photoSize;
         }
 
         item.showDetails = false;
@@ -135,57 +139,35 @@ module.exports = async function (activity) {
         return item;
     }
 
-    async function fetch_photo(account) {
-        const endpoint = 
-            activity.Context.connector.endpoint + '/users/' + 
-            account + '/photos/48x48/$value';
- 
-        try {
-            const response = await got(endpoint, {
-                headers: {
-                    'Authorization': 'Bearer ' + activity.Context.connector.token
-                },
-                encoding: null
-            });
-
-            if (response.statusCode == 200) {
-                return "data:" + response.headers["content-type"] + ";base64," + 
-                    new Buffer(response.body).toString('base64');
-            }
-        } catch (err) {
-            return null;
-        }
-    }
- 
-    function configure_range() {
+    function configureRange() {
         if (activity.Request.Query.startDate) {
-            startDate = convert_date(activity.Request.Query.startDate);
+            startDate = convertDate(activity.Request.Query.startDate);
         }
- 
+
         if (activity.Request.Query.endDate) {
-            endDate = convert_date(activity.Request.Query.endDate);
+            endDate = convertDate(activity.Request.Query.endDate);
         }
- 
+
         if (activity.Request.Query.page && activity.Request.Query.pageSize) {
             action = 'firstpage';
-            page = parseInt(activity.Request.Query.page);
-            pageSize = parseInt(activity.Request.Query.pageSize);
- 
+            page = parseInt(activity.Request.Query.page, 10);
+            pageSize = parseInt(activity.Request.Query.pageSize, 10);
+
             if (activity.Request.Data &&
                 activity.Request.Data.args &&
-                activity.Request.Data.args.atAgentAction == 'nextpage') {
+                activity.Request.Data.args.atAgentAction === 'nextpage') {
                 action = 'nextpage';
-                page = parseInt(activity.Request.Data.args._page) || 2;
-                pageSize = parseInt(activity.Request.Data.args._pageSize) || 20;
+                page = parseInt(activity.Request.Data.args._page, 10) || 2;
+                pageSize = parseInt(activity.Request.Data.args._pageSize, 10) || 20;
             }
         } else if (activity.Request.Query.pageSize) {
-            pageSize = parseInt(activity.Request.Query.pageSize);
+            pageSize = parseInt(activity.Request.Query.pageSize, 10);
         } else {
             pageSize = 10;
         }
     }
 };
- 
+
 function skip(i, length, date) {
     if (startDate && endDate) {
         return date < startDate || date > endDate;
@@ -197,20 +179,20 @@ function skip(i, length, date) {
         const startItem = Math.max(page - 1, 0) * pageSize;
 
         let endItem = startItem + pageSize;
- 
+
         if (endItem > length) {
             endItem = length;
         }
- 
+
         return i < startItem || i >= endItem;
     } else if (pageSize) {
-        return i > pageSize - 1;  
+        return i > pageSize - 1;
     } else {
         return false;
     }
 }
 
-function convert_date(date) {
+function convertDate(date) {
     return new Date(
         date.substring(0, 4),
         date.substring(4, 6) - 1,
