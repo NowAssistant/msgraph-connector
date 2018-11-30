@@ -1,5 +1,6 @@
 'use strict';
 
+const got = require('got');
 const moment = require('moment');
 const api = require('./api');
 
@@ -30,14 +31,6 @@ const dateAscending = (a, b) => {
     return a < b ? -1 : (a > b ? 1 : 0);
 };
 
-let startDate = null;
-let endDate = null;
-
-// eslint-disable-next-line no-unused-vars
-let action = null;
-let page = null;
-let pageSize = null;
-
 module.exports = async function (activity) {
     try {
         api.initialize(activity);
@@ -45,23 +38,29 @@ module.exports = async function (activity) {
         const response = await api('/me/events?$select=' + fields.join(','));
 
         if (response.statusCode === 200 && response.body.value && response.body.value.length > 0) {
-            configureRange();
+            const today = new Date();
 
-            activity.Response.Data.items = [];
+            const items = [];
 
             for (let i = 0; i < response.body.value.length; i++) {
                 const item = await convertItem(response.body.value[i]);
+                const eventDate = new Date(item.date);
 
-                if (!skip(i, response.body.value.length, new Date(item.date))) {
-                    activity.Response.Data.items.push(item);
+                if (today.setHours(0, 0, 0, 0) === eventDate.setHours(0, 0, 0, 0)) {
+                    items.push(item);
                 }
             }
 
-            activity.Response.Data.items.sort(dateAscending);
+            if (items.length > 0) {
+                activity.Response.Data.items = items.sort(dateAscending);
+            } else {
+                activity.Response.Data.items = [];
+            }
         } else {
             activity.Response.Data = {
                 statusCode: response.statusCode,
-                message: 'Bad request or no events returned'
+                message: 'Bad request or no events returned',
+                items: []
             };
         }
     } catch (error) {
@@ -79,7 +78,7 @@ module.exports = async function (activity) {
 
     return activity; // cloud connector support
 
-    function convertItem(_item) {
+    async function convertItem(_item) {
         const item = _item;
 
         item.date = new Date(_item.start.dateTime).toISOString();
@@ -115,7 +114,6 @@ module.exports = async function (activity) {
 
         item.duration = duration;
 
-        //TODO change to Cisco room link when response property name is known
         if (item.location && item.location.coordinates) {
             item.location.link =
                 'https://www.google.com/maps/search/?api=1&query=' +
@@ -123,15 +121,10 @@ module.exports = async function (activity) {
                 item.location.coordinates.longitude;
         }
 
-        //TODO add Cisco webex link when response property name is known
-
-        const basePhotoUri = 'https://outlook.office.com/owa/service.svc/s/GetPersonaPhoto?email=';
-        const photoSize = '&size=HR64x64';
-
-        item.organizer.photo = basePhotoUri + _item.organizer.emailAddress.address + photoSize;
+        item.organizer.photo = await fetchPhoto(_item.organizer.emailAddress.address);
 
         for (let i = 0; i < _item.attendees.length; i++) {
-            item.attendees[i].photo = basePhotoUri + _item.attendees[i].emailAddress.address + photoSize;
+            item.attendees[i].photo = await fetchPhoto(_item.attendees[i].emailAddress.address);
         }
 
         item.showDetails = false;
@@ -139,63 +132,25 @@ module.exports = async function (activity) {
         return item;
     }
 
-    function configureRange() {
-        if (activity.Request.Query.startDate) {
-            startDate = convertDate(activity.Request.Query.startDate);
-        }
+    async function fetchPhoto(account) {
+        const endpoint =
+            activity.Context.connector.endpoint + '/users/' +
+            account + '/photos/48x48/$value';
 
-        if (activity.Request.Query.endDate) {
-            endDate = convertDate(activity.Request.Query.endDate);
-        }
+        try {
+            const response = await got(endpoint, {
+                headers: {
+                    Authorization: 'Bearer ' + activity.Context.connector.token
+                },
+                encoding: null
+            });
 
-        if (activity.Request.Query.page && activity.Request.Query.pageSize) {
-            action = 'firstpage';
-            page = parseInt(activity.Request.Query.page, 10);
-            pageSize = parseInt(activity.Request.Query.pageSize, 10);
-
-            if (activity.Request.Data &&
-                activity.Request.Data.args &&
-                activity.Request.Data.args.atAgentAction === 'nextpage') {
-                action = 'nextpage';
-                page = parseInt(activity.Request.Data.args._page, 10) || 2;
-                pageSize = parseInt(activity.Request.Data.args._pageSize, 10) || 20;
+            if (response.statusCode === 200) {
+                return 'data:' + response.headers['content-type'] + ';base64,' +
+                    new Buffer(response.body).toString('base64');
             }
-        } else if (activity.Request.Query.pageSize) {
-            pageSize = parseInt(activity.Request.Query.pageSize, 10);
-        } else {
-            pageSize = 10;
+        } catch (err) {
+            return null;
         }
     }
 };
-
-function skip(i, length, date) {
-    if (startDate && endDate) {
-        return date < startDate || date > endDate;
-    } else if (startDate) {
-        return date < startDate;
-    } else if (endDate) {
-        return date > endDate;
-    } else if (page && pageSize) {
-        const startItem = Math.max(page - 1, 0) * pageSize;
-
-        let endItem = startItem + pageSize;
-
-        if (endItem > length) {
-            endItem = length;
-        }
-
-        return i < startItem || i >= endItem;
-    } else if (pageSize) {
-        return i > pageSize - 1;
-    } else {
-        return false;
-    }
-}
-
-function convertDate(date) {
-    return new Date(
-        date.substring(0, 4),
-        date.substring(4, 6) - 1,
-        date.substring(6, 8)
-    );
-}
