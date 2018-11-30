@@ -112,7 +112,7 @@ module.exports = async function (activity) {
             duration += _duration._data.minutes + 'm ';
         }
 
-        item.duration = duration;
+        item.duration = duration.trim();
 
         if (item.location && item.location.coordinates) {
             item.location.link =
@@ -149,6 +149,8 @@ module.exports = async function (activity) {
                 return 'data:' + response.headers['content-type'] + ';base64,' +
                     new Buffer(response.body).toString('base64');
             }
+
+            return null;
         } catch (err) {
             return null;
         }

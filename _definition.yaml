@@ -37,9 +37,3 @@ Scopes:
 - ScopeName: user.read.all
   ScopeDescription: user.read.all
   IsDefault: true
-- ScopeName: files.read.all
-  ScopeDescription: files.read.all
-  IsDefault: true
-- ScopeName: people.read
-  ScopeDescription: people.read
-  IsDefault: true
