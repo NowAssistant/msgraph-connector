@@ -9,7 +9,7 @@ module.exports = async function (activity) {
         const response = await api('/me');
 
         activity.Response.Data = {
-            success: (response && response.statusCode === 200)
+            success: response && response.statusCode === 200
         };
     } catch (error) {
         const response = {
