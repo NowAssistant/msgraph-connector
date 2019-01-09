@@ -1,6 +1,5 @@
 'use strict';
 
-const got = require('got');
 const moment = require('moment');
 const api = require('./api');
 
@@ -43,7 +42,7 @@ module.exports = async function (activity) {
             const items = [];
 
             for (let i = 0; i < response.body.value.length; i++) {
-                const item = await convertItem(response.body.value[i]);
+                const item = convertItem(response.body.value[i]);
                 const eventDate = new Date(item.date);
 
                 if (today.setHours(0, 0, 0, 0) === eventDate.setHours(0, 0, 0, 0)) {
@@ -76,9 +75,7 @@ module.exports = async function (activity) {
         };
     }
 
-    return activity; // cloud connector support
-
-    async function convertItem(_item) {
+    function convertItem(_item) {
         const item = _item;
 
         item.date = new Date(_item.start.dateTime).toISOString();
@@ -86,9 +83,7 @@ module.exports = async function (activity) {
         const _duration = moment.duration(
             moment(_item.end.dateTime)
                 .diff(
-                    moment(_item.start.dateTime)
-                )
-        );
+                    moment(_item.start.dateTime)));
 
         let duration = '';
 
@@ -121,38 +116,17 @@ module.exports = async function (activity) {
                 item.location.coordinates.longitude;
         }
 
-        item.organizer.photo = await fetchPhoto(_item.organizer.emailAddress.address);
+        const basePhotoUri = 'https://outlook.office.com/owa/service.svc/s/GetPersonaPhoto?email=';
+        const photoSize = '&size=HR64x64';
+
+        item.organizer.photo = basePhotoUri + _item.organizer.emailAddress.address + photoSize;
 
         for (let i = 0; i < _item.attendees.length; i++) {
-            item.attendees[i].photo = await fetchPhoto(_item.attendees[i].emailAddress.address);
+            item.attendees[i].photo = basePhotoUri + _item.attendees[i].emailAddress.address + photoSize;
         }
 
         item.showDetails = false;
 
         return item;
-    }
-
-    async function fetchPhoto(account) {
-        const endpoint =
-            activity.Context.connector.endpoint + '/users/' +
-            account + '/photos/48x48/$value';
-
-        try {
-            const response = await got(endpoint, {
-                headers: {
-                    Authorization: 'Bearer ' + activity.Context.connector.token
-                },
-                encoding: null
-            });
-
-            if (response.statusCode === 200) {
-                return 'data:' + response.headers['content-type'] + ';base64,' +
-                    new Buffer(response.body).toString('base64');
-            }
-
-            return null;
-        } catch (err) {
-            return null;
-        }
     }
 };
