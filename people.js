@@ -28,7 +28,7 @@ module.exports = async (activity) => {
             pageSize = 20;
         }
 
-        const response = await api('/me/people/?$search=' + activity.Request.Query.query);
+        const response = await api('/me/people?$search=' + activity.Request.Query.query);
 
         if (response.statusCode === 200 && response.body.value && response.body.value.length > 0) {
             activity.Response.Data._action = action;
