@@ -43,3 +43,6 @@ Scopes:
 - ScopeName: directory.read.all
   ScopeDescription: directory.read.all
   IsDefault: true
+- ScopeName: people.read.all
+  ScopeDescription: people.read.all
+  IsDefault: true

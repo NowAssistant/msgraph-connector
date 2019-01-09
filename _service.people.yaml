@@ -1,0 +1,8 @@
+ServiceName: people
+InterfaceName: items
+Description: people
+APIDoc: ''
+Interfaces: 'search, pagination'
+RequiredScopes: ''
+AdditionalParameters: 
+Method: ''
