@@ -38,7 +38,6 @@ module.exports = async function (activity) {
 
         if (response.statusCode === 200 && response.body.value && response.body.value.length > 0) {
             const today = new Date();
-
             const items = [];
 
             for (let i = 0; i < response.body.value.length; i++) {
@@ -53,7 +52,10 @@ module.exports = async function (activity) {
             if (items.length > 0) {
                 activity.Response.Data.items = items.sort(dateAscending);
             } else {
-                activity.Response.Data.items = [];
+                activity.Response.Data = {
+                    items: [],
+                    message: 'No events found for current date'
+                };
             }
         } else {
             activity.Response.Data = {
