@@ -37,3 +37,9 @@ Scopes:
 - ScopeName: user.read.all
   ScopeDescription: user.read.all
   IsDefault: true
+- ScopeName: group.read.all
+  ScopeDescription: group.read.all
+  IsDefault: true
+- ScopeName: directory.read.all
+  ScopeDescription: directory.read.all
+  IsDefault: true

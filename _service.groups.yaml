@@ -1,0 +1,8 @@
+ServiceName: groups
+InterfaceName: items
+Description: groups
+APIDoc: ''
+Interfaces: ''
+RequiredScopes: ''
+AdditionalParameters: 
+Method: ''
