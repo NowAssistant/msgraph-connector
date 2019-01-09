@@ -116,16 +116,25 @@ module.exports = async function (activity) {
                 'https://www.google.com/maps/search/?api=1&query=' +
                 item.location.coordinates.latitude + ',' +
                 item.location.coordinates.longitude;
+        } else if (
+            !item.onlineMeetingUrl &&
+            item.location &&
+            item.location.displayName.indexOf('http') !== -1
+        ) {
+            item.onlineMeetingUrl = item.location.displayName;
+            item.location = null;
         }
 
-        const basePhotoUri = 'https://outlook.office.com/owa/service.svc/s/GetPersonaPhoto?email=';
+        // Disable avatars until workable solution found
+
+        /* const basePhotoUri = 'https://outlook.office.com/owa/service.svc/s/GetPersonaPhoto?email=';
         const photoSize = '&size=HR64x64';
 
         item.organizer.photo = basePhotoUri + _item.organizer.emailAddress.address + photoSize;
 
         for (let i = 0; i < _item.attendees.length; i++) {
             item.attendees[i].photo = basePhotoUri + _item.attendees[i].emailAddress.address + photoSize;
-        }
+        } */
 
         item.showDetails = false;
 
