@@ -1,0 +1,8 @@
+ServiceName: eventsWith
+InterfaceName: items
+Description: eventsWith
+APIDoc: ''
+Interfaces: 'search'
+RequiredScopes: ''
+AdditionalParameters: 
+Method: ''
