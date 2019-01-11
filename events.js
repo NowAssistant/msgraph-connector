@@ -3,6 +3,8 @@
 const moment = require('moment');
 const api = require('./api');
 
+const urlRegex = /[-a-zA-Z0-9@:%_\+.~#?&//=]{2,256}\.[a-z]{2,4}\b(\/[-a-zA-Z0-9@:%_\+.~#?&//=]*)?/gi;
+
 const fields = [
     'subject',
     'body',
@@ -76,68 +78,94 @@ module.exports = async function (activity) {
             ErrorText: m
         };
     }
+};
 
-    function convertItem(_item) {
-        const item = _item;
+function convertItem(_item) {
+    const item = _item;
 
-        item.date = new Date(_item.start.dateTime).toISOString();
+    item.date = new Date(_item.start.dateTime).toISOString();
 
-        const _duration = moment.duration(
-            moment(_item.end.dateTime)
-                .diff(
-                    moment(_item.start.dateTime)));
+    const _duration = moment.duration(
+        moment(_item.end.dateTime)
+            .diff(
+                moment(_item.start.dateTime)));
 
-        let duration = '';
+    let duration = '';
 
-        if (_duration._data.years > 0) {
-            duration += _duration._data.years + 'y ';
-        }
+    if (_duration._data.years > 0) {
+        duration += _duration._data.years + 'y ';
+    }
 
-        if (_duration._data.months > 0) {
-            duration += _duration._data.months + 'mo ';
-        }
+    if (_duration._data.months > 0) {
+        duration += _duration._data.months + 'mo ';
+    }
 
-        if (_duration._data.days > 0) {
-            duration += _duration._data.days + 'd ';
-        }
+    if (_duration._data.days > 0) {
+        duration += _duration._data.days + 'd ';
+    }
 
-        if (_duration._data.hours > 0) {
-            duration += _duration._data.hours + 'h ';
-        }
+    if (_duration._data.hours > 0) {
+        duration += _duration._data.hours + 'h ';
+    }
 
-        if (_duration._data.minutes > 0) {
-            duration += _duration._data.minutes + 'm ';
-        }
+    if (_duration._data.minutes > 0) {
+        duration += _duration._data.minutes + 'm';
+    }
 
-        item.duration = duration.trim();
+    item.duration = duration.trim();
 
-        if (item.location && item.location.coordinates) {
-            item.location.link =
-                'https://www.google.com/maps/search/?api=1&query=' +
-                item.location.coordinates.latitude + ',' +
-                item.location.coordinates.longitude;
-        } else if (
-            !item.onlineMeetingUrl &&
-            item.location &&
-            item.location.displayName.indexOf('http') !== -1
-        ) {
-            item.onlineMeetingUrl = item.location.displayName;
+    if (item.location && item.location.coordinates) {
+        item.location.link =
+            'https://www.google.com/maps/search/?api=1&query=' +
+            item.location.coordinates.latitude + ',' +
+            item.location.coordinates.longitude;
+    } else if (item.location && !item.onlineMeetingUrl) {
+        const url = parseUrl(item.location.displayName);
+
+        if (url !== null) {
+            item.onlineMeetingUrl = url;
             item.location = null;
         }
-
-        // Disable avatars until workable solution found
-
-        /* const basePhotoUri = 'https://outlook.office.com/owa/service.svc/s/GetPersonaPhoto?email=';
-        const photoSize = '&size=HR64x64';
-
-        item.organizer.photo = basePhotoUri + _item.organizer.emailAddress.address + photoSize;
-
-        for (let i = 0; i < _item.attendees.length; i++) {
-            item.attendees[i].photo = basePhotoUri + _item.attendees[i].emailAddress.address + photoSize;
-        } */
-
-        item.showDetails = false;
-
-        return item;
     }
-};
+
+    if (!item.onlineMeetingUrl) {
+        const url = parseUrl(item.bodyPreview);
+
+        if (url !== null) {
+            item.onlineMeetingUrl = url;
+        }
+    }
+
+    // Disable avatars until workable solution found
+
+    /* const basePhotoUri = 'https://outlook.office.com/owa/service.svc/s/GetPersonaPhoto?email=';
+    const photoSize = '&size=HR64x64';
+
+    item.organizer.photo = basePhotoUri + _item.organizer.emailAddress.address + photoSize;
+
+    for (let i = 0; i < _item.attendees.length; i++) {
+        item.attendees[i].photo = basePhotoUri + _item.attendees[i].emailAddress.address + photoSize;
+    } */
+
+    item.showDetails = false;
+
+    return item;
+}
+
+function parseUrl(text) {
+    if (text.search(urlRegex) !== -1) {
+        let url = text.substring(text.search(urlRegex), text.length);
+
+        if (url.indexOf(' ') !== -1) {
+            url = url.substring(0, url.indexOf(' '));
+        }
+
+        if (!url.match(/^[a-zA-Z]+:\/\//)) {
+            url = 'https://' + url;
+        }
+
+        return url;
+    }
+
+    return null;
+}
