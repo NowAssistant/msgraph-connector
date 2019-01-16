@@ -22,7 +22,8 @@ const fields = [
     'reminderMinutesBeforeStart',
     'isReminderOn',
     'responseRequested',
-    'responseStatus'
+    'responseStatus',
+    'recurrence'
 ];
 
 const dateAscending = (a, b) => {
@@ -38,12 +39,31 @@ module.exports = async function (activity) {
 
         const response = await api('/me/events?$select=' + fields.join(','));
 
-        if (response.statusCode === 200 && response.body.value && response.body.value.length > 0) {
+        if (
+            response.statusCode === 200 &&
+            response.body.value &&
+            response.body.value.length > 0
+        ) {
             const today = new Date();
             const items = [];
 
             for (let i = 0; i < response.body.value.length; i++) {
-                const item = convertItem(response.body.value[i]);
+                let raw = response.body.value[i];
+
+                const rawDate = new Date(raw.start.dateTime);
+
+                if (
+                    raw.recurrence &&
+                    (today.setHours(0, 0, 0, 0) !== rawDate.setHours(0, 0, 0, 0))
+                ) {
+                    raw = await resolveRecurrence(raw.id);
+
+                    if (raw === null) {
+                        continue;
+                    }
+                }
+
+                const item = convertItem(raw);
                 const eventDate = new Date(item.date);
 
                 if (today.setHours(0, 0, 0, 0) === eventDate.setHours(0, 0, 0, 0)) {
@@ -73,12 +93,41 @@ module.exports = async function (activity) {
             m = m + ': ' + error.stack;
         }
 
-        activity.Response.ErrorCode = (error.response && error.response.statusCode) || 500;
+        activity.Response.ErrorCode =
+            (error.response && error.response.statusCode) || 500;
+
         activity.Response.Data = {
             ErrorText: m
         };
     }
 };
+
+async function resolveRecurrence(eventId) {
+    try {
+        const today = new Date();
+
+        const start = new Date(today.setHours(0, 0, 0, 0));
+        const end = new Date(today.setHours(23, 59, 0, 0));
+
+        const response = await api(
+            '/me/events/' + eventId +
+            '/instances?startDateTime=' + start.toISOString() +
+            '&endDateTime=' + end.toISOString()
+        );
+
+        if (
+            response.statusCode === 200 &&
+            response.body.value &&
+            response.body.value.length > 0
+        ) {
+            return response.body.value[0]; // can only recur once per day
+        } else {
+            return null;
+        }
+    } catch (error) {
+        return null;
+    }
+}
 
 function convertItem(_item) {
     const item = _item;
@@ -138,13 +187,17 @@ function convertItem(_item) {
 
     // Disable avatars until workable solution found
 
-    /* const basePhotoUri = 'https://outlook.office.com/owa/service.svc/s/GetPersonaPhoto?email=';
+    /* const basePhotoUri =
+        'https://outlook.office.com/owa/service.svc/s/GetPersonaPhoto?email=';
+
     const photoSize = '&size=HR64x64';
 
-    item.organizer.photo = basePhotoUri + _item.organizer.emailAddress.address + photoSize;
+    item.organizer.photo =
+        basePhotoUri + _item.organizer.emailAddress.address + photoSize;
 
     for (let i = 0; i < _item.attendees.length; i++) {
-        item.attendees[i].photo = basePhotoUri + _item.attendees[i].emailAddress.address + photoSize;
+        item.attendees[i].photo =
+            basePhotoUri + _item.attendees[i].emailAddress.address + photoSize;
     } */
 
     item.showDetails = false;
