@@ -1,7 +1,7 @@
 'use strict';
 
 const moment = require('moment');
-const api = require('./common/api');
+const api = require('./api');
 
 const urlRegex = /[-a-zA-Z0-9@:%_\+.~#?&//=]{2,256}\.[a-z]{2,4}\b(\/[-a-zA-Z0-9@:%_\+.~#?&//=]*)?/gi;
 
