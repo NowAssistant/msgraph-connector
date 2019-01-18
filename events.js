@@ -1,7 +1,7 @@
 'use strict';
 
 const moment = require('moment');
-const api = require('./api');
+const api = require('./common/api');
 
 const urlRegex = /[-a-zA-Z0-9@:%_\+.~#?&//=]{2,256}\.[a-z]{2,4}\b(\/[-a-zA-Z0-9@:%_\+.~#?&//=]*)?/gi;
 
@@ -39,11 +39,7 @@ module.exports = async function (activity) {
 
         const response = await api('/me/events?$select=' + fields.join(','));
 
-        if (
-            response.statusCode === 200 &&
-            response.body.value &&
-            response.body.value.length > 0
-        ) {
+        if (response.statusCode === 200 && response.body.value && response.body.value.length > 0) {
             const today = new Date();
             const items = [];
 
@@ -52,10 +48,7 @@ module.exports = async function (activity) {
 
                 const rawDate = new Date(raw.start.dateTime);
 
-                if (
-                    raw.recurrence &&
-                    (today.setHours(0, 0, 0, 0) !== rawDate.setHours(0, 0, 0, 0))
-                ) {
+                if (raw.recurrence && (today.setHours(0, 0, 0, 0) !== rawDate.setHours(0, 0, 0, 0))) {
                     raw = await resolveRecurrence(raw.id);
 
                     if (raw === null) {
@@ -106,20 +99,14 @@ async function resolveRecurrence(eventId) {
     try {
         const today = new Date();
 
-        const start = new Date(today.setHours(0, 0, 0, 0));
-        const end = new Date(today.setHours(23, 59, 0, 0));
+        const start = (new Date(today.setHours(0, 0, 0, 0))).toISOString();
+        const end = (new Date(today.setHours(23, 59, 0, 0))).toISOString();
 
-        const response = await api(
-            '/me/events/' + eventId +
-            '/instances?startDateTime=' + start.toISOString() +
-            '&endDateTime=' + end.toISOString()
-        );
+        const endpoint = '/me/events/' + eventId + '/instances?startDateTime=' + start + '&endDateTime=' + end;
 
-        if (
-            response.statusCode === 200 &&
-            response.body.value &&
-            response.body.value.length > 0
-        ) {
+        const response = await api(endpoint);
+
+        if (response.statusCode === 200 && response.body.value && response.body.value.length > 0) {
             return response.body.value[0]; // can only recur once per day
         } else {
             return null;
@@ -134,10 +121,7 @@ function convertItem(_item) {
 
     item.date = new Date(_item.start.dateTime).toISOString();
 
-    const _duration = moment.duration(
-        moment(_item.end.dateTime)
-            .diff(
-                moment(_item.start.dateTime)));
+    const _duration = moment.duration(moment(_item.end.dateTime).diff(moment(_item.start.dateTime)));
 
     let duration = '';
 
@@ -164,10 +148,9 @@ function convertItem(_item) {
     item.duration = duration.trim();
 
     if (item.location && item.location.coordinates) {
-        item.location.link =
-            'https://www.google.com/maps/search/?api=1&query=' +
-            item.location.coordinates.latitude + ',' +
-            item.location.coordinates.longitude;
+        const baseUrl = 'https://www.google.com/maps/search/?api=1&query=';
+
+        item.location.link = baseUrl + item.location.coordinates.latitude + ',' + item.location.coordinates.longitude;
     } else if (item.location && !item.onlineMeetingUrl) {
         const url = parseUrl(item.location.displayName);
 
@@ -187,18 +170,15 @@ function convertItem(_item) {
 
     // Disable avatars until workable solution found
 
-    /* const basePhotoUri =
-        'https://outlook.office.com/owa/service.svc/s/GetPersonaPhoto?email=';
+    /*const basePhotoUri = 'https://outlook.office.com/owa/service.svc/s/GetPersonaPhoto?email=';
 
     const photoSize = '&size=HR64x64';
 
-    item.organizer.photo =
-        basePhotoUri + _item.organizer.emailAddress.address + photoSize;
+    item.organizer.photo = basePhotoUri + _item.organizer.emailAddress.address + photoSize;
 
     for (let i = 0; i < _item.attendees.length; i++) {
-        item.attendees[i].photo =
-            basePhotoUri + _item.attendees[i].emailAddress.address + photoSize;
-    } */
+        item.attendees[i].photo = basePhotoUri + _item.attendees[i].emailAddress.address + photoSize;
+    }*/
 
     item.showDetails = false;
 

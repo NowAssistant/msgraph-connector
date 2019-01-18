@@ -10,11 +10,8 @@ module.exports = async (activity) => {
         let page = parseInt(activity.Request.Query.page, 10) || 1;
         let pageSize = parseInt(activity.Request.Query.pageSize, 10) || 20;
 
-        if (
-            activity.Request.Data &&
-            activity.Request.Data.args &&
-            activity.Request.Data.args.atAgentAction === 'nextpage'
-        ) {
+        if (activity.Request.Data && activity.Request.Data.args &&
+            activity.Request.Data.args.atAgentAction === 'nextpage') {
             page = parseInt(activity.Request.Data.args._page, 10) || 2;
             pageSize = parseInt(activity.Request.Data.args._pageSize, 10) || 20;
             action = 'nextpage';
@@ -45,9 +42,7 @@ module.exports = async (activity) => {
             }
 
             for (let i = startItem; i < endItem; i++) {
-                activity.Response.Data.items.push(
-                    convertItem(response.body.value[i])
-                );
+                activity.Response.Data.items.push(convertItem(response.body.value[i]));
             }
         } else {
             activity.Response.Data = {
@@ -63,8 +58,7 @@ module.exports = async (activity) => {
             m = m + ': ' + error.stack;
         }
 
-        activity.Response.ErrorCode =
-            (error.response && error.response.statusCode) || 500;
+        activity.Response.ErrorCode = (error.response && error.response.statusCode) || 500;
 
         activity.Response.Data = {
             ErrorText: m

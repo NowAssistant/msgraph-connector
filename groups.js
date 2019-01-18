@@ -12,9 +12,7 @@ module.exports = async (activity) => {
             activity.Response.Data.items = [];
 
             for (let i = 0; i < response.body.value.length; i++) {
-                activity.Response.Data.items.push(
-                    convertItem(response.body.value[i])
-                );
+                activity.Response.Data.items.push(convertItem(response.body.value[i]));
             }
         } else {
             activity.Response.Data = {

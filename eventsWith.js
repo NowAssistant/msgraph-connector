@@ -16,28 +16,25 @@ module.exports = async (activity) => {
         const people = await api('/me/people?$search=' + activity.Request.Query.query);
         const events = await api('/me/events');
 
-        if (
-            people.statusCode === 200 && people.body.value && people.body.value.length > 0 &&
-            events.statusCode === 200 && events.body.value && events.body.value.length > 0
-        ) {
+        const isPeople = (people.statusCode === 200) && people.body.value && (people.body.value.length > 0);
+        const isEvents = (events.statusCode === 200) && events.body.value && (events.body.value.length > 0);
+
+        if (isPeople && isEvents) {
             const matches = [];
 
             for (let i = 0; i < people.body.value.length; i++) {
                 for (let j = 0; j < events.body.value.length; j++) {
-                    if (
-                        people.body.value[i].userPrincipalName ===
-                        events.body.value[j].organizer.emailAddress.address
-                    ) {
-                        matches.push(events.body.value[j]);
+                    const person = people.body.value[i];
+                    const event = events.body.value[j];
+
+                    if (person.userPrincipalName === event.organizer.emailAddress.address) {
+                        matches.push(event);
                         continue;
                     }
 
                     for (let k = 0; k < events.body.value[j].attendees.length; k++) {
-                        if (
-                            people.body.value[i].userPrincipalName ===
-                            events.body.value[j].attendees[k].emailAddress.address
-                        ) {
-                            matches.push(events.body.value[j]);
+                        if (person.userPrincipalName === event.attendees[k].emailAddress.address) {
+                            matches.push(event);
                             break;
                         }
                     }
